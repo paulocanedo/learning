@@ -1,0 +1,1 @@
+/usr/bin/c++       CMakeFiles/opengl.dir/src/util/FileLoader.cpp.o CMakeFiles/opengl.dir/src/gl3w.c.o CMakeFiles/opengl.dir/src/main.cpp.o  -o opengl -rdynamic -lglfw3 -lrt -lXrandr -lXi -lGL -lm -ldl -lXrender -ldrm -lXdamage -lX11-xcb -lxcb-glx -lxcb-dri2 -lxcb-dri3 -lxcb-present -lxcb-sync -lxshmfence -lXxf86vm -lXfixes -lXext -lX11 -lpthread -lxcb -lXau -lXdmcp -lpng 
