@@ -11,38 +11,9 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "util/FileLoader.h"
+#include "shaders.h"
 
 using namespace std;
-
-const char* vertexSource = 
-    "#version 150 \n"
-    "in vec2 position;"
-    "in vec3 color;"
-    "in vec2 texcoord;"
-    "out vec3 _color;"
-    "out vec2 _texcoord;"
-    "uniform mat4 mView;"
-    "void main() {"
-    "_color = color;"
-    "_texcoord = texcoord;"
-    "gl_Position = mView * vec4(position, 0.0, 1.0);"
-    "}";
-
-const char* fragmentSource = 
-    "#version 150 \n"
-    "in vec3 _color;"
-    "in vec2 _texcoord;"
-    "out vec4 outColor;"
-    "uniform sampler2D tex1;"
-    "uniform sampler2D tex2;"
-    "void main() {"
-//    "outColor = texture(tex, _texcoord) * vec4(1.0, 0.0, 1.0, 1.0);"
-//    "outColor = texture(tex, _texcoord) * vec4(_color, 1.0);"
-    "vec4 color_tex1 = texture(tex1, _texcoord);"
-    "vec4 color_tex2 = texture(tex2, _texcoord);"
-    "outColor = mix(color_tex1, color_tex2, 0.5);"
-//    "outColor = color_tex2;"
-    "}";
 
 png_byte* load_image(const char* filename, int &width, int &height) {
 //    int width;
@@ -190,17 +161,12 @@ int main() {
     }
     printf("OpenGL %s, GLSL %s\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-    // string vfilename("src/shaders/vshader.vsh");
-    // string ffilename("src/shaders/fshader.fsh");
-    // const char* vertexSource   = FileLoader::getFileContents(vfilename).c_str();
-    // const char* fragmentSource = FileLoader::getFileContents(ffilename).c_str();
-
     float vertices[] = {
     //  pos(x,y)      color(r,g,b)      texture(x,y)
-         0.5f,  1.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-         1.5f,  1.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-         1.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-         0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f
+        -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // Top-left
+         0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // Top-right
+         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // Bottom-right
+        -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f  // Bottom-left
     };
 
     GLuint elements[] = {
@@ -214,7 +180,7 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     //-------------------VERTEX SHADER-------------------------------------------
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexSource, NULL);
+    glShaderSource(vertexShader, 1, &__externVertexSource, NULL);
     glCompileShader(vertexShader);
     GLint status;
     glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status);
@@ -228,7 +194,7 @@ int main() {
     }
     //-------------------FRAGMENT SHADER-----------------------------------------
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
+    glShaderSource(fragmentShader, 1, &__externFragmentSource, NULL);
     glCompileShader(fragmentShader);
     glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status);
     if(status != GL_TRUE) {
@@ -319,11 +285,17 @@ int main() {
     glGenerateMipmap(GL_TEXTURE_2D);
     //---------------------------------------------------------------------------
 
-    //-------------------MATRICES TRANSFORMATION---------------------------------
-    glm::mat4 mView = glm::ortho(0.0f, 2.0f, 0.0f, 2.0f, -1.0f, 1.0f);
-    GLint mViewPosition = glGetUniformLocation(shaderProgram, "mView");
-    glUniformMatrix4fv(mViewPosition, 1, GL_FALSE, glm::value_ptr(mView));
-    //---------------------------------------------------------------------------
+    glm::mat4 view = glm::lookAt(
+        glm::vec3(1.2f, 1.2f, 1.2f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f)
+    );
+    GLint uniView = glGetUniformLocation(shaderProgram, "view");
+    glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
+
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 1.0f, 10.0f);
+    GLint uniProj = glGetUniformLocation(shaderProgram, "proj");
+    glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 
 
     if(glGetError() != GL_NO_ERROR) {
@@ -333,9 +305,24 @@ int main() {
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
+    //-------------------MATRICES TRANSFORMATION---------------------------------
+    glm::mat4 model;
+    model = glm::rotate(
+        model, 
+        glm::radians((float)clock() / (float)CLOCKS_PER_SEC * 180.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f)
+    );
+
+    GLfloat s = sin((GLfloat)clock() / (GLfloat)CLOCKS_PER_SEC * 5.0f) * 0.25f + 0.75f;
+    model = glm::scale(model, glm::vec3(s, s, s));
+
+    GLint uniModel = glGetUniformLocation(shaderProgram, "model");
+    glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+    //---------------------------------------------------------------------------
         /* Render here */
         // Clear the screen to black
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         float time = (float)clock() / (float)CLOCKS_PER_SEC;
         GLint color = glGetUniformLocation(shaderProgram, "color");

@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(opengl)
 
+execute_process(
+	COMMAND 
+	${CMAKE_CURRENT_LIST_DIR}/generate_shaders.py
+	${CMAKE_CURRENT_LIST_DIR}/include/shaders.h
+	${CMAKE_CURRENT_LIST_DIR}/src/shaders/
+)
 ##############################
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
